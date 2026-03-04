@@ -11,7 +11,7 @@
 
 /* Prevent iOS/Android bounce-scroll and all touch-based page scrolling */
 html, body {
-  height: 100%;
+  height: 100dvh;          /* dvh = dynamic viewport height, excludes iOS browser bar */
   overflow: hidden;
   touch-action: none;
   background: #000;
@@ -80,18 +80,21 @@ body {
 }
 
 /* ---- D-Pad touch controls ----
-   Only visible on touch screens (pointer: coarse).
-   Centered below the canvas, semi-transparent.              */
+   Sits inside #game-wrap below the canvas.
+   Hidden on desktop (fine pointer), visible on touch devices.  */
 #dpad {
-  display: none;           /* hidden by default on desktop */
+  display: none;
   flex-direction: column;
   align-items: center;
-  margin-top: 14px;
+  padding: 8px 0 4px;
   gap: 4px;
+  flex-shrink: 0;          /* never squash the d-pad buttons */
 }
 /* Show d-pad on coarse-pointer devices (phones/tablets) */
 @media (pointer: coarse) {
   #dpad { display: flex; }
+  /* Shrink canvas so HUD + canvas + d-pad all fit inside 100dvh */
+  #canvas { max-height: calc(100dvh - 210px); }
 }
 
 #dpad-row {
@@ -169,17 +172,17 @@ body {
   </div>
   <!-- Canvas logical resolution = 560×560; CSS scales it to fit screen -->
   <canvas id="canvas" width="560" height="560"></canvas>
-</div>
 
-<!-- D-Pad: only rendered on touch devices via CSS media query -->
-<div id="dpad">
-  <button class="dpad-btn" id="btn-up"    aria-label="Up">&#9650;</button>
-  <div id="dpad-row">
-    <button class="dpad-btn" id="btn-left"  aria-label="Left">&#9664;</button>
-    <div class="dpad-center"></div>
-    <button class="dpad-btn" id="btn-right" aria-label="Right">&#9654;</button>
+  <!-- D-Pad: inside game-wrap so it is never clipped by overflow:hidden on body -->
+  <div id="dpad">
+    <button class="dpad-btn" id="btn-up"    aria-label="Up">&#9650;</button>
+    <div id="dpad-row">
+      <button class="dpad-btn" id="btn-left"  aria-label="Left">&#9664;</button>
+      <div class="dpad-center"></div>
+      <button class="dpad-btn" id="btn-right" aria-label="Right">&#9654;</button>
+    </div>
+    <button class="dpad-btn" id="btn-down"  aria-label="Down">&#9660;</button>
   </div>
-  <button class="dpad-btn" id="btn-down"  aria-label="Down">&#9660;</button>
 </div>
 
 <div id="overlay">
@@ -244,7 +247,9 @@ let keys = {};
 let muted = false;
 
 // ==================== AUDIO ====================
-const bgMusic = new Audio('פנינה רוזנבלום  איראן - DON\'T SHOOT (הופק באולפני קולות).mp3');
+// encodeURI converts Hebrew characters and spaces to percent-encoded form,
+// which mobile browsers require for the src to resolve correctly.
+const bgMusic = new Audio(encodeURI('פנינה רוזנבלום  איראן - DON\'T SHOOT (הופק באולפני קולות).mp3'));
 bgMusic.loop = true;
 bgMusic.volume = 0.35;
 
@@ -857,6 +862,9 @@ function startGame() {
 
   const ac = getAudioCtx();
   if (ac.state === 'suspended') ac.resume();
+  // .load() re-fetches and unlocks the audio element on iOS Safari,
+  // which requires the load+play chain to happen inside a user gesture.
+  bgMusic.load();
   bgMusic.currentTime = 0;
   bgMusic.play().catch(err => console.warn('Music blocked:', err));
 }
